@@ -38,12 +38,16 @@ func setup() RVConfiguration {
 
 	exec.Command("/bin/sh", "-c", "chmod 777 " + setupScriptPath)
 
+	channelScriptPath := "$HOME/go/src/github.com/raonismaneoto/R-VChannel/channel.sh"
+
+	exec.Command("/bin/sh", "-c", "chmod 777 " + channelScriptPath)
+
 	cmd := exec.Command("/bin/sh", "-c", setupScriptPath + " " + configuration.PortToOpen + " " +  configuration.ChannelFilePath)
 
 	data, err := cmd.Output()
 
 	if err != nil {
-		print("Error on creating file")
+		print("Error on setup script", err.Error())
 	}
 
 	print(data)
@@ -54,11 +58,8 @@ func setup() RVConfiguration {
 func server(conChan chan string, configuration RVConfiguration) {
 	l, _ := net.Listen("tcp", configuration.ServerIp+":"+configuration.PortToOpen)
 	conChan <- "We can continue"
+	c, _ := l.Accept()
 	for {
-		print("receivedddd")
-		c, err := l.Accept()
-
-
 		message, err := bufio.NewReader(c).ReadBytes('\n')
 
 		if err != nil {
@@ -68,8 +69,6 @@ func server(conChan chan string, configuration RVConfiguration) {
 		var msg RVMessage
 
 		err = json.Unmarshal(message, &msg)
-		fmt.Print(msg.Data)
-		fmt.Print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
 		cmdStr := "notify-send " + msg.Data
 		cmd := exec.Command("/bin/sh", "-c", cmdStr)
 
@@ -80,7 +79,6 @@ func server(conChan chan string, configuration RVConfiguration) {
 			print(data)
 			return
 		}
-
 	}
 }
 
@@ -99,7 +97,7 @@ func client(configuration RVConfiguration) {
 			watcher, _ := fsnotify.NewWatcher()
 			// watch for error
 
-			if err := watcher.Add("/home/raoni/tst"); err != nil {
+			if err := watcher.Add(configuration.ChannelFilePath); err != nil {
 				fmt.Println("ERROR", err)
 			}
 
@@ -107,7 +105,7 @@ func client(configuration RVConfiguration) {
 			// watch for events
 			case <-watcher.Events:
 				fmt.Printf("New event received")
-				body, err := ioutil.ReadFile("/home/raoni/tst")
+				body, err := ioutil.ReadFile(configuration.ChannelFilePath)
 
 				if err != nil {
 					fmt.Print("error on reading file")
