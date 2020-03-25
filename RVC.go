@@ -84,13 +84,22 @@ func server(conChan chan string, configuration RVConfiguration) {
 
 func client(configuration RVConfiguration) {
 	c, err := net.Dial("tcp", configuration.ClientIp+":"+configuration.PortToOpen)
-
 	if err != nil {
-		print("Error on connecting to server")
+		flag := false
+		for i := 0; i < 20; i++ {
+			c, err = net.Dial("tcp", configuration.ClientIp+":"+configuration.PortToOpen)
+
+			if err == nil {
+				flag = true
+				break
+			}
+		}
+		if(!flag) {
+			return
+		}
 	}
 
 	buffer := make(chan string, 10000000)
-
 
 	go func() {
 		for {
