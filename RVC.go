@@ -10,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"time"
 )
 
 type RVMessage struct {
@@ -93,6 +94,7 @@ func client(configuration RVConfiguration) {
 				flag = true
 				break
 			}
+			time.Sleep(2 * time.Minute)
 		}
 		if(!flag) {
 			return
