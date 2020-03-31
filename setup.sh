@@ -11,6 +11,6 @@ touch $file_to_create
 
 channel_file_pattern="channel_file="
 
-sed -i "s,channel_file=.*,channel_file=$file_to_create," "$(pwd)/channel.sh"
+sed -i "s,channel_file=.*,channel_file=$file_to_create," "$GOPATH/src/github.com/raonismaneoto/R-VChannel/channel.sh"
 
 exit $?

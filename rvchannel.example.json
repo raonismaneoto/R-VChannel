@@ -1,0 +1,7 @@
+{
+  "ChannelFilePath": "absolute/path/to/the/file",
+  "PortToOpen": "Port",
+  "ServerIp": "LOCAL_SERVER_IP",
+  "ClientIp": "LOCAL_CLIENT_IP",
+  "SudoPassword": "sudopassword"
+}

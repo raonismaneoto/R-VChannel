@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/fsnotify/fsnotify"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"os"
+	"os/exec"
+	"strings"
 	"time"
 )
+
 
 type RVMessage struct {
 	Data string
@@ -22,15 +26,21 @@ type RVConfiguration struct {
 	ClientIp string
 }
 
-func getConfiguration() RVConfiguration {
+func getConfiguration(gopath string) RVConfiguration {
+	log.Println("Getting Configuration")
 	// it must open the port and make all scripts executable
-	file, _ := os.Open("rvchannel.json")
+	file, err := os.Open(gopath+"/src/github.com/raonismaneoto/R-VChannel/rvchannel.json")
 	defer file.Close()
+
+	if err != nil {
+		log.Println("Error on opening configuration file", err.Error())
+	}
+
 	decoder := json.NewDecoder(file)
 	configuration := RVConfiguration{}
-	err := decoder.Decode(&configuration)
+	err = decoder.Decode(&configuration)
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Println("Error on decoding file to variable", err.Error())
 	}
 
 	return configuration
@@ -102,7 +112,21 @@ func client(configuration RVConfiguration) {
 }
 
 func main() {
-	configuration := getConfiguration()
+	gopath_cmd := exec.Command("/bin/sh", "-c", "echo $GOPATH")
+	gopath, _ := gopath_cmd.Output()
+	gopath_str := strings.TrimSpace(string(gopath))
+
+	f, err := os.OpenFile(gopath_str+"/src/github.com/raonismaneoto/R-VChannel/logs/log.info", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+
+	defer f.Close()
+	wrt := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(wrt)
+
+	configuration := getConfiguration(gopath_str)
 	go client(configuration)
 
 	ThreadLocker := make(chan interface{})

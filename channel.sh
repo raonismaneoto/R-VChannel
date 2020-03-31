@@ -1,6 +1,6 @@
 #!/bin/bash
 
-channel_file=/home/raoni/tstando2
+channel_file=/home/raoni/tstando3
 
 message=
 

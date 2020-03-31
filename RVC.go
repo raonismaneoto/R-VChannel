@@ -3,11 +3,12 @@ package main
 import (
 	"bufio"
 	"encoding/json"
-	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 type RVMessage struct {
@@ -19,31 +20,38 @@ type RVConfiguration struct {
 	PortToOpen string
 	ServerIp string
 	ClientIp string
+	SudoPassword string
 }
 
-func getConfiguration() RVConfiguration {
+func getConfiguration(gopath string) RVConfiguration {
+	log.Println("Starting reading configuration process")
 	// it must open the port and make all scripts executable
-	file, _ := os.Open("rvchannel.json")
+	file, err := os.Open(gopath+"/src/github.com/raonismaneoto/R-VChannel/rvchannel.json")
 	defer file.Close()
+
+	if err != nil {
+		log.Println("Error on opening configuration file", err.Error())
+	}
+
 	decoder := json.NewDecoder(file)
 	configuration := RVConfiguration{}
-	err := decoder.Decode(&configuration)
+	err = decoder.Decode(&configuration)
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Println("Error on decoding configuration file", err.Error())
 	}
 
 	return configuration
 }
 
-func setup() RVConfiguration {
+func setup(gopath string) RVConfiguration {
 	// it must open the port and make all scripts executable
-	configuration := getConfiguration()
+	configuration := getConfiguration(gopath)
 
-	setupScriptPath := "$HOME/go/src/github.com/raonismaneoto/R-VChannel/setup.sh"
+	setupScriptPath := "$GOPATH/src/github.com/raonismaneoto/R-VChannel/setup.sh"
 
 	exec.Command("/bin/sh", "-c", "chmod 777 " + setupScriptPath)
 
-	channelScriptPath := "$HOME/go/src/github.com/raonismaneoto/R-VChannel/channel.sh"
+	channelScriptPath := "$GOPATH/src/github.com/raonismaneoto/R-VChannel/channel.sh"
 
 	exec.Command("/bin/sh", "-c", "chmod 777 " + channelScriptPath)
 
@@ -52,7 +60,7 @@ func setup() RVConfiguration {
 	data, err := cmd.Output()
 
 	if err != nil {
-		print("Error on setup script", err.Error())
+		log.Println("Error on executing setup script ", err.Error())
 	}
 
 	print(data)
@@ -61,10 +69,21 @@ func setup() RVConfiguration {
 }
 
 func server(conChan chan string, configuration RVConfiguration) {
-	l, _ := net.Listen("tcp", configuration.ServerIp+":"+configuration.PortToOpen)
+	log.Println("Starting server routine")
+	l, err := net.Listen("tcp", configuration.ServerIp+":"+configuration.PortToOpen)
+
+	if err != nil {
+		log.Println("Error on opening listen connection", err.Error())
+	}
 	conChan <- "We can continue"
-	c, _ := l.Accept()
+	c, err := l.Accept()
+
+	if err != nil {
+		log.Println("Error on accepting connection", err.Error())
+	}
+
 	for {
+		log.Println("Starting server loop")
 		message, err := bufio.NewReader(c).ReadBytes('\n')
 
 		if err != nil {
@@ -88,7 +107,22 @@ func server(conChan chan string, configuration RVConfiguration) {
 }
 
 func main() {
-	configuration := setup()
+
+	gopath_cmd := exec.Command("/bin/sh", "-c", "echo $GOPATH")
+	gopath, _ := gopath_cmd.Output()
+	gopath_str := strings.TrimSpace(string(gopath))
+
+	f, err := os.OpenFile(gopath_str+"/src/github.com/raonismaneoto/R-VChannel/logs/log.info", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+
+	defer f.Close()
+	wrt := io.MultiWriter(os.Stdout, f)
+	log.SetOutput(wrt)
+
+	configuration := setup(gopath_str)
 	connChan := make(chan string)
 	go server(connChan, configuration)
 	<-connChan

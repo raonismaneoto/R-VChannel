@@ -1,0 +1,61 @@
+#!/bin/bash
+source ~/.bashrc
+source ~/.bash_profile
+
+project_path="$GOPATH/src/github.com/raonismaneoto/R-VChannel"
+conf_file_path="$project_path/rvchannel.json"
+log_file_path="$project_path/logs/install.log"
+error_log_file_path="$project_path/logs/install-error.log"
+
+function check_installation {
+  if [[ "`crontab -l | grep channelinstall`" == "" ]]
+  then
+    (crontab -l ; echo "@reboot $project_path/channelinstall start") 2>&1 | grep -v "no crontab" | uniq | crontab -
+  fi
+}
+
+function install_dependencies {
+  sudo apt-get install jq
+}
+
+function run {
+	echo "Starting" > $log_file_path
+	sudopasswd=`jq .SudoPassword $conf_file_path`
+	echo $sudopasswd
+	sudopasswd=${sudopasswd%\"}
+	sudopasswd=${sudopasswd#\"}
+	
+	echo $sudopasswd | sudo -S date >> $log_file_path
+
+	export GOBIN="$GOPATH/bin"
+
+ 	check_installation
+
+	/usr/local/go/bin/go install -i $project_path/RVC.go 1>> $log_file_path 2>> $error_log_file_path
+	/usr/local/go/bin/go run $project_path/RVC.go & 1>> $log_file_path 2>> $error_log_file_path
+
+	pid=$!
+	echo "server pid" $pid >> $log_file_path
+	
+	if ps -p $pid > /dev/null
+	then
+		echo "started"
+	else
+		echo "error on startup"
+	fi
+}
+
+case "$1" in
+start)  run
+        ;;
+stop)   exit 1
+        ;;
+restart) run
+        ;;
+reload|force-reload) $0 start
+        ;;
+*)      echo "I dont know why it happened, it just did."
+        exit 2
+        ;;
+esac
+
